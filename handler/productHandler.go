@@ -20,17 +20,21 @@ type ProductHandler interface {
 	DeleteProduct(w http.ResponseWriter, r *http.Request)
 }
 
-type productHandler struct {
+type ProductHandlerImpl struct {
 	repo repository.ProductRepository
 }
 
-func NewProductHandler() ProductHandler {
-	return &productHandler{
-		repo: repository.NewProductRepository,
+func NewProductHandler() (*ProductHandlerImpl, error) {
+	repo, err := repository.NewProductRepository()
+	if err != nil {
+		return nil, err
 	}
+	return &ProductHandlerImpl{
+		repo: repo,
+	}, err
 }
 
-func (h *productHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandlerImpl) GetProducts(w http.ResponseWriter, r *http.Request) {
 	products, err := h.repo.GetProducts()
 	if err != nil {
 		responseError(w, http.StatusBadRequest, "url does not exsist")
@@ -40,7 +44,7 @@ func (h *productHandler) GetProducts(w http.ResponseWriter, r *http.Request) {
 	responseJson(w, http.StatusOK, products)
 }
 
-func (h *productHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandlerImpl) GetProduct(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -56,7 +60,7 @@ func (h *productHandler) GetProduct(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (h *productHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandlerImpl) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -64,15 +68,22 @@ func (h *productHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 		log.Error().Msg("url not exsist ")
 		return
 	}
-	product, err := h.repo.UpdateProduct(uint(id))
+	var product database.RequestProduct
+	data := json.NewDecoder(r.Body)
+	if err := data.Decode(&product); err != nil {
+		responseError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	defer r.Body.Close()
+	err = h.repo.UpdateProduct(product, uint(id))
 	if err != nil {
 		responseError(w, http.StatusInternalServerError, "record not found")
 	}
-	responseJson(w, http.StatusOK, product)
+	responseJson(w, http.StatusOK, nil)
 }
 
-func (h *productHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
-	var product database.Product
+func (h *ProductHandlerImpl) AddProduct(w http.ResponseWriter, r *http.Request) {
+	var product database.RequestProduct
 	data := json.NewDecoder(r.Body)
 	if err := data.Decode(&product); err != nil {
 		responseError(w, http.StatusBadRequest, err.Error())
@@ -81,12 +92,12 @@ func (h *productHandler) AddProduct(w http.ResponseWriter, r *http.Request) {
 	defer r.Body.Close()
 	prod, err := h.repo.AddProduct(product)
 	if err != nil {
-		responseError(w, http.StatusInternalServerError, err)
+		responseError(w, http.StatusInternalServerError, err.Error())
 	}
 	responseJson(w, http.StatusCreated, prod)
 }
 
-func (h *productHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandlerImpl) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
@@ -94,7 +105,7 @@ func (h *productHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
 		log.Error().Msg("url not exsist ")
 		return
 	}
-	err = &h.repo.DeleteProduct(uint(id))
+	err = h.repo.DeleteProduct(uint(id))
 	if err != nil {
 		responseError(w, http.StatusInternalServerError, err.Error())
 		return

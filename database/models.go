@@ -1,35 +1,55 @@
 package database
 
-import (
-	"github.com/jinzhu/gorm"
-	_ "github.com/jinzhu/gorm/dialects/mysql"
-)
-
-type Product struct {
-	gorm.Model
-	ProductName string   `json:"productName"`
-	Category    Category `gorm:"foreignKey:CategoryID"`
-	CategoryID  uint
+type CartProduct struct {
+	ProductID   uint   `json:"productId"`
+	ProductName string `json:"productName"`
+	CategoryID  uint   `json:"categoryId"`
 	Price       string `json:"price"`
-	Status      bool   `json:"status"`
+	InventoryID uint   `json:"inventoryId"`
+}
+
+type RequestProduct struct {
+	ProductID   uint      `json:"productId,omitempty"`
+	ProductName string    `json:"productName,omitempty"`
+	Category    Category  `json:"category,omitempty"`
+	Price       string    `json:"price,omitempty"`
+	Inventory   Inventory `json:"inventory,omitempty"`
+}
+
+type ResponseProduct struct {
+	ProductID   uint
+	ProductName string
+	CategoryID  uint
+	Price       string
+	Quantity    uint
 }
 
 type Category struct {
-	gorm.Model
 	CategoryName string `json:"categoryName"`
 }
 
+type ResponseCategory struct {
+	ProductID    uint
+	CategoryCode uint   `json:"categoryCode"`
+	CategoryName string `json:"categoryName"`
+}
+
+type Item struct {
+	Product  ResponseProduct `json:"product"`
+	Quantity uint            `json:"quantity"`
+}
+
 type Cart struct {
-	gorm.Model
-	Product         []Product `gorm:"foreignKey:ProductID"` // cart can have many product
-	ProductID       uint
-	ProductQuantity uint    `json:"productQuantity"`
-	Subtotal        float64 `json:"subtotal"`
+	Items    []Item  // cart can have many product
+	Subtotal float64 `json:"subtotal"`
 }
 
 type Inventory struct {
-	gorm.Model
-	Product         []Product `gorm:"foreignKey:ProductID"` // there can be many products in inventory
+	ProductID uint `json:"ProductId"`
+	Quantity  uint `json:"quantity"`
+}
+
+type ResponseInventory struct {
 	ProductID       uint
 	QuantityInStock uint `json:"quantityInStock"`
 }
