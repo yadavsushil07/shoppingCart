@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/gorilla/mux"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/yadavsushil07/shoppingCart/database"
 	"github.com/yadavsushil07/shoppingCart/repository"
@@ -21,15 +22,17 @@ type CategoryHandler interface {
 
 type CategoryHandlerImpl struct {
 	repo repository.CategoryRepository
+	log  *zerolog.Logger
 }
 
-func NewCategoryHandler() (*CategoryHandlerImpl, error) {
-	repo, err := repository.NewCategoryRepository()
+func NewCategoryHandler(logger *zerolog.Logger) (*CategoryHandlerImpl, error) {
+	repo, err := repository.NewCategoryRepository(logger)
 	if err != nil {
 		return nil, err
 	}
 	return &CategoryHandlerImpl{
-		repo,
+		repo: repo,
+		log:  logger,
 	}, nil
 }
 
@@ -85,7 +88,9 @@ func (h *CategoryHandlerImpl) AddCategory(w http.ResponseWriter, r *http.Request
 	categoryName := category.CategoryName
 	categoryresult, err := h.repo.AddCategory(category, categoryName)
 	if err != nil {
+		h.log.Error().Msg("error in Add category handler level")
 		responseError(w, http.StatusInternalServerError, err.Error())
+		return
 	}
 	responseJson(w, http.StatusCreated, categoryresult)
 }

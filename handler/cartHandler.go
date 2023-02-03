@@ -7,7 +7,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/gorilla/sessions"
-	"github.com/rs/zerolog/log"
+	"github.com/rs/zerolog"
 	"github.com/yadavsushil07/shoppingCart/database"
 	"github.com/yadavsushil07/shoppingCart/repository"
 )
@@ -21,23 +21,31 @@ type cartHandler interface {
 
 type CartHandlerImpl struct {
 	repo repository.CartRepository
+	log  *zerolog.Logger
 }
 
-var store = sessions.NewCookieStore([]byte("sushilyadav"))
+var store = sessions.NewCookieStore([]byte("sushil"))
 
-func NewCartHandler() (*CartHandlerImpl, error) {
-	repo, err := repository.NewCartRepository()
+func NewCartHandler(logger *zerolog.Logger) (*CartHandlerImpl, error) {
+	repo, err := repository.NewCartRepository(logger)
 	if err != nil {
 		return nil, err
 	}
 	return &CartHandlerImpl{
 		repo: repo,
+		log:  logger,
 	}, err
 }
 
-func (ch *CartHandlerImpl) ViewCart(w http.ResponseWriter, r *http.Request) {
-	session, _ := store.Get(r, "sushilyadav")
+func (ch *CartHandlerImpl) VeiwCart(w http.ResponseWriter, r *http.Request) {
+	session, _ := store.Get(r, "sushil")
+	if session.Values["cart"] == nil {
+		ch.log.Error().Msg("cart is empty")
+		responseError(w, http.StatusBadRequest, "cart is empty")
+		return
+	}
 	strCart := session.Values["cart"].(string)
+
 	var cart []database.Item
 	json.Unmarshal([]byte(strCart), &cart)
 
@@ -54,17 +62,17 @@ func (ch *CartHandlerImpl) AddToCart(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.Atoi(vars["productId"])
 	if err != nil {
 		responseError(w, http.StatusBadRequest, "url not exsist")
-		log.Error().Msg("url not exsist ")
+		ch.log.Error().Msg("url not exsist ")
 		return
 	}
-	prod, _ := repository.NewProductRepository()
-	item, err := prod.GetProduct(uint(id))
+	item, err := ch.repo.AddToCart(uint(id))
 	if err != nil {
 		responseError(w, http.StatusBadRequest, "product not found")
-		log.Error().Msg("product not found")
+		ch.log.Error().Msg("product not found")
 		return
 	}
-	session, _ := store.Get(r, "sushilyadav")
+	session, _ := store.Get(r, "sushil")
+	session.Options.MaxAge = 5 * 60
 	cart := session.Values["cart"]
 
 	if cart == nil {
@@ -124,16 +132,22 @@ func (ch *CartHandlerImpl) RemoveFromCart(w http.ResponseWriter, r *http.Request
 	id, err := strconv.Atoi(vars["productId"])
 	if err != nil {
 		responseError(w, http.StatusBadRequest, "url not exsist")
-		log.Error().Msg("url not exsist ")
+		ch.log.Error().Msg("url not exsist ")
 		return
 	}
-	session, _ := store.Get(r, "sushilyadav")
+	session, _ := store.Get(r, "sushil")
 	strCart := session.Values["cart"].(string)
 	var cart []database.Item
 	json.Unmarshal([]byte(strCart), &cart)
 
 	index := exists(uint(id), cart)
-	cart = remove(cart, index)
+	if index >= 0 && cart[index].Quantity > 1 {
+		cart[index].Quantity--
+	} else if index >= 0 {
+		cart = remove(cart, index)
+	} else {
+		responseError(w, http.StatusBadRequest, "Item not in the cart")
+	}
 
 	bytesCart, _ := json.Marshal(cart)
 	session.Values["cart"] = string(bytesCart)

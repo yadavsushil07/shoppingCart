@@ -6,11 +6,13 @@
     "configurations": [
         {
             "name": "Launch package",
-            "mode":"debug",
+            "mode":"auto",
             "type": "go",
             "request": "launch",
             "program": "${fileDirname}",
-            "showLog": true
+            "showLog": true,
+            "env": {},
+            "args": []
         }
     ]
 }

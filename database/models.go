@@ -3,9 +3,7 @@ package database
 type CartProduct struct {
 	ProductID   uint   `json:"productId"`
 	ProductName string `json:"productName"`
-	CategoryID  uint   `json:"categoryId"`
 	Price       string `json:"price"`
-	InventoryID uint   `json:"inventoryId"`
 }
 
 type RequestProduct struct {
@@ -35,8 +33,8 @@ type ResponseCategory struct {
 }
 
 type Item struct {
-	Product  ResponseProduct `json:"product"`
-	Quantity uint            `json:"quantity"`
+	Product  CartProduct `json:"product"`
+	Quantity uint        `json:"quantity"`
 }
 
 type Cart struct {
